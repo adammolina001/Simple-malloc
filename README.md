@@ -1,4 +1,4 @@
-## malloc
+## Simple-malloc
 
 Implémentation simple d'un allocateur mémoire en C.
 
