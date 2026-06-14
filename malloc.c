@@ -14,7 +14,7 @@ typedef struct block_meta{
     struct block_meta* next_block;
 }block_meta;
 
-block_meta* global_base = NULL;  //= premier bloc, il n'y en a pas 
+block_meta* global_base = NULL;  //== premier bloc, il n'y en a pas 
 
 block_meta* find_free_block(size_t size_needed, block_meta* first_block, block_meta** last_block){
 /*Regarde si un block de taille nécessaire est libre et le return si c'est le cas 
@@ -96,6 +96,36 @@ void free(void* ptr) {
     }
 }
 
+void my_memcpy(void* new_ptr, void* ptr, size_t block_size) {
+/*Copie les donnée que contient un pointer vers un nouveau pointeur pour realloc
+  On cast new_ptr et ptr en unsigned char pour les avoir en octets par octets
+  On itère sur la taille du block octet par octets, si l'octet existe on le copie */
+    unsigned char* ptrcpy = (unsigned char*) ptr;
+    unsigned char* new_ptrcpy = (unsigned char*) new_ptr;
+    for (size_t i = 0; i < block_size; i++) {
+        new_ptrcpy[i] = ptrcpy[i];
+    }
+}
+
+void* realloc(void* ptr, size_t new_size) {
+//Prend un poiteur qui a été initialisé avec malloc et lui alloue plus ou moins d'espace
+if (ptr == NULL) return malloc(new_size);
+if (new_size == 0) { free(ptr); return NULL;}
+
+    block_meta* block_ptr = (block_meta*) ptr - 1; //Le block de ptr
+
+//Si le block a une taille sufisante il n'y a rien a faire
+//sinon on créer un nouveau poiteur dans une nouvelle zone, on y copie les donnée de ptr et on libere ptr
+    if (block_ptr->size < new_size) {
+        void* new_ptr = malloc(new_size);
+        my_memcpy(new_ptr, ptr, block_ptr->size);
+        free(ptr);
+
+        return new_ptr;
+    }
+    return ptr;
+}
+
 int main () {
 //Sert a tester nos fonctions
 //On va essayer de stocké un int puis de l'écrire avec son adresse 
@@ -105,22 +135,27 @@ int main () {
     int* test2 = (int*) malloc(sizeof(int));
     test2[0] = 25;
 
+    printf("\n");
+    printf("int* test = (int*) malloc(sizeof(int));\ntest[0] = 2;\nint* test2 = (int*) malloc(sizeof(int));\ntest2[0] = 25;\n");
+    printf("value: %d | Adress: %p\n", test[0], (void*) test);    //avec %p printf veut un void*
+    printf("value: %d | Adress: %p\n", test2[0], (void*) test2);
+    printf("\n");
+
+    test = realloc(test, 3 * sizeof(int));
+
+    printf("\n");
+    printf("test = realloc(test, 3 * sizeof(int));\n");
+    printf("value: %d | Adress: %p\n", test[0], (void*) test);    //avec %p printf veut un void*
+    printf("value: %d | Adress: %p\n", test2[0], (void*) test2);
+    printf("\n");
+
+    test2 = realloc(test2, 2 * sizeof(int));
+    
+    printf("\n");
+    printf("realloc(test2, 2 * sizeof(int));\n");
     printf("value: %d | Adress: %p\n", test[0], (void*) test);    //avec %p printf veut un void*
     printf("value: %d | Adress: %p\n", test2[0], (void*) test2);
 
-    free(test2);
-
-    int* test3 = (int*) malloc(sizeof(int));
-    test3[0] = 43;
-    
-    printf("value: %d | Adress: %p\n", test3[0], (void*) test3);
-
-    free(test3);
-    free(test); //Il y a le coalexcing
-
-    block_meta* block_test = (block_meta*) test - 1;
-    int size = block_test->size;
-    printf("size: %d | adress: %p\n", size, (void*)block_test);
 
     return 0;
 }
