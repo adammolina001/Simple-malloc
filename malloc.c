@@ -16,6 +16,16 @@ typedef struct block_meta{
 
 block_meta* global_base = NULL;  //== premier bloc, il n'y en a pas 
 
+void my_memcpy(void* new_ptr, void* ptr, size_t block_size) {
+/*Copie les donnée que contient un pointer vers un nouveau pointeur pour realloc
+  On cast new_ptr et ptr en unsigned char pour les avoir en octets par octets*/
+    unsigned char* ptrcpy = (unsigned char*) ptr;
+    unsigned char* new_ptrcpy = (unsigned char*) new_ptr;
+    for (size_t i = 0; i < block_size; i++) {
+        new_ptrcpy[i] = ptrcpy[i];
+    }
+}
+
 block_meta* find_free_block(size_t size_needed, block_meta* first_block, block_meta** last_block){
 /*Regarde si un block de taille nécessaire est libre et le return si c'est le cas 
   sinon return NULL
@@ -23,12 +33,12 @@ block_meta* find_free_block(size_t size_needed, block_meta* first_block, block_m
     donc il sera mis a jour dans le while et servira a avoir l'adresse du dernier block visité 
     si on ne trouve pas de block corespondant*/
 
-block_meta* current = first_block;
-while(current && (!current->isFree || (current->size < size_needed))) {
-    *last_block = current;
-    current = current->next_block;
-}
-return current;
+    block_meta* current = first_block;
+    while(current && (!current->isFree || (current->size < size_needed))) {
+        *last_block = current;
+        current = current->next_block;
+    }
+    return current;
 }
 
 block_meta* request_block(size_t size_needed, block_meta* last_block) {
@@ -38,25 +48,25 @@ block_meta* request_block(size_t size_needed, block_meta* last_block) {
   - sbrk(t) demmande t mémoire a l'OS et renvoie un pointeur au début de type void* 
     donc on doit rajouter le cast (block_meta*) */
 
-    block_meta* new = (block_meta*) sbrk(size_needed + sizeof(block_meta));
-    if (new == (void*)-1) {
-        printf("Error: failed sbrk");
+    block_meta* new_block = (block_meta*) sbrk(size_needed + sizeof(block_meta));
+    if (new_block == (void*)-1) {
+        fprintf(stderr, "Error: failed sbrk\n");    //Les messages d'erreur vont sur stderr
         return NULL;
     }
 
-    new->size = size_needed;
-    new->isFree = 0;
-    new->next_block = NULL;
+    new_block->size = size_needed;
+    new_block->isFree = 0;
+    new_block->next_block = NULL;
 
     if (last_block) {
-        last_block->next_block = new;
+        last_block->next_block = new_block;
     }
 
     if (!global_base) {
-        global_base = new;
+        global_base = new_block;
     }
 
-    return new;
+    return new_block;
 }
 
 void* malloc(size_t size_needed) {
@@ -96,21 +106,10 @@ void free(void* ptr) {
     }
 }
 
-void my_memcpy(void* new_ptr, void* ptr, size_t block_size) {
-/*Copie les donnée que contient un pointer vers un nouveau pointeur pour realloc
-  On cast new_ptr et ptr en unsigned char pour les avoir en octets par octets
-  On itère sur la taille du block octet par octets, si l'octet existe on le copie */
-    unsigned char* ptrcpy = (unsigned char*) ptr;
-    unsigned char* new_ptrcpy = (unsigned char*) new_ptr;
-    for (size_t i = 0; i < block_size; i++) {
-        new_ptrcpy[i] = ptrcpy[i];
-    }
-}
-
 void* realloc(void* ptr, size_t new_size) {
 //Prend un poiteur qui a été initialisé avec malloc et lui alloue plus ou moins d'espace
-if (ptr == NULL) return malloc(new_size);
-if (new_size == 0) { free(ptr); return NULL;}
+    if (ptr == NULL) return malloc(new_size);
+    if (new_size == 0) { free(ptr); return NULL;}
 
     block_meta* block_ptr = (block_meta*) ptr - 1; //Le block de ptr
 
